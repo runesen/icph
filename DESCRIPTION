@@ -1,0 +1,14 @@
+Package: icph
+Type: Package
+Title: Invariant Causal Prediction in the presence of discrete hidden variables
+Version: 1.0
+Date: 2018-08-08
+Author: Rune Christiansen
+Maintainer: Rune Christiansen <krunechristiansen@math.ku.dk>
+Description: This package contains (1) a method for causal discovery in the presence of discrete latent variables and
+  (2) a test for the equality of switching regression models. 
+  Both methods require data collected in different experimental or environmental conditions.
+License: GPL-2
+Depends: R (>= 3.1.0)
+Imports: seqICP, mixtools, methods, ggplot2, grid, gridExtra, reshape2, scales
+RoxygenNote: 6.1.0
