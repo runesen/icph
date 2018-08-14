@@ -49,6 +49,7 @@
 #' 
 #' 
 #' @examples  
+#'   set.seed(1)
 #'   n <- 600
 #'   # Binary hidden variable that follows an order 1 Markov chain
 #'   Gamma <- matrix(c(.9, .1, .1, .9),2,2, byrow=TRUE)
@@ -71,6 +72,7 @@
 #'   res.icph
 #'   
 #' @import methods
+#' @importFrom utils combn
 #'   
 #' @export 
 
@@ -82,22 +84,25 @@ icph <- function(D, E, target,
                  par.icp = list(silent = FALSE, 
                                 stopIfEmpty = TRUE, 
                                 output.pvalues = TRUE), 
-                 par.test = list(silent = TRUE)){
+                 par.test = list()){
 
-  if(!exists("max.parents",par.icp)){
+  if(!exists("max.parents", par.icp)){
     par.icp$max.parents=ncol(D)-1
   }
-  if(!exists("silent",par.icp)){
+  if(!exists("silent", par.icp)){
     par.icp$silent = FALSE
   }
-  if(!exists("stopIfEmpty",par.icp)){
+  if(!exists("stopIfEmpty", par.icp)){
     par.icp$stopIfEmpty = TRUE
   }
-  if(!exists("output.pvalues",par.icp)){
+  if(!exists("output.pvalues", par.icp)){
     par.icp$output.pvalues=TRUE
   }
-  if(!exists("testNoMix",par.test)){
+  if(!exists("testNoMix", par.test)){
     par.test$testNoMix=FALSE
+  }
+  if(!exists("silent", par.test)){
+    par.test$silent=TRUE
   }
   
   max.parents <- par.icp$max.parents
@@ -144,7 +149,7 @@ icph <- function(D, E, target,
                           plot = FALSE,
                           par.test = par.test)
 
-  if(!silent) print(paste("P-value: ", res$p.value))
+  if(!silent) print(paste("p-value: ", res$p.value))
   pvalues <- data.frame(ind=1,
                         p.value=res$p.value,
                         reject = res$reject)
@@ -186,7 +191,7 @@ icph <- function(D, E, target,
                               plot = FALSE,
                               par.test = par.test)
       
-      if(!silent) print(paste("P-value: ", res$p.value))
+      if(!silent) print(paste("p-value: ", res$p.value))
       # read out results
       pvalues   <- rbind(pvalues, data.frame(ind=ind, p.value=res$p.value, reject = res$reject))
       if(output.estimates){

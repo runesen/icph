@@ -6,8 +6,7 @@
 \usage{
 icph(D, E, target, number.of.states = 2, model = "HMM",
   intercept = TRUE, alpha = 0.05, par.icp = list(silent = FALSE,
-  stopIfEmpty = TRUE, output.pvalues = TRUE), par.test = list(silent =
-  TRUE))
+  stopIfEmpty = TRUE, output.pvalues = TRUE), par.test = list())
 }
 \arguments{
 \item{D}{A numeric \code{n} times \code{d} data matrix. Each column corresponds to a variable, each row to an observation.}
@@ -64,6 +63,7 @@ Infers the set of causal parents of a target variable Y among a vector of covari
 }
 \examples{
  
+  set.seed(1)
   n <- 600
   # Binary hidden variable that follows an order 1 Markov chain
   Gamma <- matrix(c(.9, .1, .1, .9),2,2, byrow=TRUE)

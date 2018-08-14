@@ -104,13 +104,14 @@
 #'     \item{d}{ The number of covariates (including a possible intercept term).}
 #'   
 #' @examples 
+#'   set.seed(1)
 #'   n <- 600
 #'   # construct indicator for several data sets
 #'   E <- rep(1:3, each=n/3)
 #'   # transition matrices
-#'   Gamma1 <- matrix(c(.98, .02,.1, .9), 2,2,byrow=TRUE)
-#'   Gamma2 <- matrix(c(.9, .1,.1, .9), 2,2,byrow=TRUE)
-#'   Gamma3 <- matrix(c(.9, .1,.02, .98), 2,2,byrow=TRUE)
+#'   Gamma1 <- matrix(c(.9, .1, .1, .9), 2,2,byrow=TRUE)
+#'   Gamma2 <- matrix(c(.9, .1, .3, .7), 2,2,byrow=TRUE)
+#'   Gamma3 <- matrix(c(.5, .5, .5, .5), 2,2,byrow=TRUE)
 #'   # hidden variables with different distributions for each data set
 #'   H1 <- H2 <- H3 <- rep(1, n/3)
 #'   for(t in 2:(n/3)){
@@ -147,6 +148,7 @@
 #' @importFrom  grid grid.draw 
 #' @importFrom  gridExtra arrangeGrob
 #' @importFrom  scales trans_new
+#' @importFrom stats dnorm fitted ks.test lm nlm qchisq rnorm runif var
 #' 
 #' @export
 
