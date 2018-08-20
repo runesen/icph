@@ -314,12 +314,12 @@ print.test <- function(out){
     
     cat("\n\n")
     if(ne > 1){
-      if(!out$reject) cat("Hypothesis of h-invariance is not rejected")
-      if(out$reject) cat("Hypothesis of h-invariance is rejected")
+      if(!out$reject) cat("Hypothesis of h-invariance not rejected")
+      if(out$reject) cat("Hypothesis of h-invariance rejected")
       cat("\n")
-      cat(paste("P-value:", ifelse(out$output.pvalue, round(out$p.value, 5), out$p.value)))
+      cat(paste("p-value:", ifelse(out$output.pvalue, round(out$p.value, 5), out$p.value)))
     } else{
-      cat(paste("P-value:", round(out$p.values.cover, 5)))
+      cat(paste("p-value:", round(out$p.values.cover, 5)))
     }
     
     cat("\n\n")
