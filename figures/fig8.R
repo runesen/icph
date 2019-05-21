@@ -1,5 +1,5 @@
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-#install_github("runesen/icph")
+#devtools::install_github("runesen/icph/code")
 library(icph)
 library(InvariantCausalPrediction)
 library(ggplot2)
