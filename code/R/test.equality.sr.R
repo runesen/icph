@@ -31,6 +31,8 @@
 #'       If ``NLM'', the Newton-type optimizer \code{nlm} is called. 
 #'       Note: the EM-algorithm is currently only implemented for model ``IID''. 
 #'     }
+#'     \item{\code{optim.n.inits}:}{ Number of different starting values in likelihood optimization. 
+#'     }
 #'     \item{\code{variance.constraint}:}{ The constraint imposed on the error variance of the mixture components. 
 #'       If ``equality'', all error variances are required to be equal. 
 #'       If ``lower bound'', a lower bound is imposed (\code{1e-4} for ``NLM'' and \code{1e-16} for ``EM'').
@@ -126,20 +128,14 @@
 #'   
 #'   # The intercept, regression coefficients and error variances 
 #'   # for the switching regression models of Y1 given X1 coincide
-#'   test1 <- test.equality.sr(Y = Y1, X = X1, E = E, 
-#'                             par.test = list(test.parameters = c("intercept", "beta", "sigma"), 
-#'                                             output.pvalue = TRUE)
-#'                            )
+#'   test1 <- test.equality.sr(Y = Y1, X = X1, E = E)
 #'   test1
 #'   
 #'   X2 <- rnorm(n)
 #'   Y2  <- (H==1)*(1 + E*X2 + .5*rnorm(n)) + (H==2)*(E + 2*X2 + .7*rnorm(n))
 #'   
 #'   # For the switching regression models of Y2 given X2, they do not
-#'   test2 <- test.equality.sr(Y = Y2, X = X2, E = E, 
-#'                             par.test = list(test.parameters = c("intercept", "beta", "sigma"), 
-#'                                             output.pvalue = TRUE)
-#'                            )
+#'   test2 <- test.equality.sr(Y = Y1, X = X2, E = E)
 #'   test2
 #' 
 #' @import ggplot2
@@ -156,6 +152,7 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
                              model = "HMM", intercept = TRUE, 
                              alpha = 0.05, plot = TRUE,
                              par.test = list(method = "NLM", 
+                                             optim.n.inits = 5,
                                              variance.constraint = "equality",
                                              test.parameters = c("intercept", "beta", "sigma"), 
                                              testNoMix = FALSE, 
@@ -168,6 +165,9 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
   
   if(!exists("method", par.test)){
     par.test$method <- "NLM"
+  }
+  if(!exists("optim.n.inits", par.test)){
+    par.test$optim.n.inits <- 5
   }
   if(!exists("variance.constraint", par.test)){
     par.test$variance.constraint <- "equality"
@@ -185,7 +185,7 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
     par.test$init <- "regmix"
   }
   if(!exists("output.pvalue", par.test)){
-    par.test$output.pvalue <- FALSE
+    par.test$output.pvalue <- TRUE
   }
   if(!exists("silent", par.test)){
     par.test$silent <- TRUE
@@ -196,11 +196,13 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
   
   K <- number.of.states
   method <- par.test$method
+  optim.n.inits <- par.test$optim.n.inits
   arbvar <- (par.test$variance.constraint == "lower bound")
   testpars <- par.test$test.parameters
   testNoMix <- par.test$testNoMix
   penalty <- par.test$penalty
   init <- par.test$init
+  if(init == "true") number.of.inits <- 1
   output.pvalue <- par.test$output.pvalue
   silent <- par.test$silent
   theta0 <- par.test$theta0
@@ -208,7 +210,7 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
   X <- as.matrix(X)
   
   ## Input control and warnings
-  if(init == "true" & is.null(theta0)) warning("No true parameters supplied -- using generic starting values"); init <- "regmix"
+  if(init == "true" & is.null(theta0)){ warning("No true parameters supplied -- using generic starting values"); init <- "regmix"}
   
   if(testNoMix){
     res <- decoupledTest(X, Y, E, intercept, plot)
@@ -235,7 +237,7 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
       w <- which(E==f)
       xf <- X[w,,drop=F]
       yf <- Y[w]
-      MFs[[i]] <- mle.em(xf, yf, K, theta0[[i]], intercept, arbvar, model, init)
+      MFs[[i]] <- mle.em(xf, yf, K, theta0[[i]], intercept, arbvar, model, init, rep=optim.n.inits)
       if(!is.null(theta0)){ tmp <- check.cover(MFs[[i]], testpars); p.values.cover[i] <- tmp$p.value; mse[i] <- tmp$mse}
     }
   }
@@ -246,7 +248,7 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
       w <- which(E==f)
       xf <- X[w,,drop=F]
       yf <- Y[w]
-      MFs[[i]] <- mle.nlm(x=xf, y=yf, K, theta0=theta0[[i]], intercept, arbvar, model, init, penalty)
+      MFs[[i]] <- mle.nlm(x=xf, y=yf, K, theta0=theta0[[i]], intercept, arbvar, model, init, penalty, rep=optim.n.inits)
       if(!is.null(theta0)){ tmp <- check.cover(MFs[[i]], testpars); p.values.cover[i] <- tmp$p.value; mse[i] <- tmp$mse}
     }
   }

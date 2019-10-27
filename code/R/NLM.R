@@ -18,18 +18,23 @@ mle.nlm <- function(x=xf, y=yf, K=3, theta0=theta0[[i]], intercept=TRUE, arbvar 
         inits <- mixtools::regmix.init(y, xx, k=K, addintercept = FALSE, arbvar=arbvar)
         beta0 <- inits$beta
         sigma0 <- inits$s + 0.01 # to comply with constraints in NLM method
+        gamma0 <- matrix(inits$lambda, nrow=K, ncol=K, byrow=TRUE)
       }
       if(init == "random"){
         beta0 <- matrix(runif(d*K,-2,2),d,K)
         sigma0 <- runif(1+(K-1)*arbvar,.01,1)
+        gamma0 <- matrix(runif(K^2,0,1/K),K,K) 
+        diag(gamma0) <- sapply(1:K, function(k) 1-sum(gamma0[k,-k]))
       }
       if(init == "true"){
-        beta0 <- theta0$beta
+        beta0 <- rbind(theta0$mu, theta0$beta)
         sigma0 <- theta0$sigma
+        gamma0 <- theta0$gamma
       }
-      gamma0 <- matrix(runif(K^2,0,1/K),K,K) 
-      diag(gamma0) <- sapply(1:K, function(k) 1-sum(gamma0[k,-k]))
+      
+      # to avoid overparametrization
       if(model == "IID") gamma0 <- gamma0[1,]
+      if(!arbvar) sigma0 <- sigma0[1]
       
       lambda <- lambda_seq[l]
       mods[[r]] <- suppressWarnings(mle(xx,y,beta0,sigma0,gamma0,arbvar,model,lambda,pl=0))
@@ -49,13 +54,13 @@ mle.nlm <- function(x=xf, y=yf, K=3, theta0=theta0[[i]], intercept=TRUE, arbvar 
   beta <- mod$beta
   sigma <- mod$sigma
   gamma <- mod$gamma
-  # print(gamma)
-  # print("sndfk")
+  
+  # make sure sigma is always of length K, and gamma is K x K.
   if(!arbvar) sigma <- rep(sigma, K)
   if(model == "IID") gamma <- matrix(gamma, K, K, byrow=T)
   
   h        <- viterbi(xx, y, K, beta, sigma, gamma, arbvar, model)
-  fit      <- fit.model(x, y, h, beta, intercept)
+  fit      <- fit.model(xx, y, h, beta)
   jacobian <- dpw2pn(parvect, d, K, arbvar, model)
   fisher   <- mod$hessian
   covmat   <- fisher2covmat(fisher, jacobian, d, K, arbvar, model, intercept)
@@ -87,7 +92,7 @@ mle.nlm <- function(x=xf, y=yf, K=3, theta0=theta0[[i]], intercept=TRUE, arbvar 
   if(intercept){
     theta <- lapply(1:K, function(i) list(intercept = beta[1,i], beta = beta[-1,i], sigma = sigma[i], gamma = gammaa[[i]]))
     theta0 <- lapply(1:K, function(i) list(intercept = theta0$mu[i], beta = theta0$beta[,i],
-                                          sigma = theta0$sigma[i], gamma = gammaa0[[i]]))
+                                           sigma = theta0$sigma[i], gamma = gammaa0[[i]]))
   }
   if(!intercept){
     theta <- lapply(1:K, function(i) list(beta = beta[,i], sigma = sigma[i], gamma = gammaa[[i]]))
@@ -121,7 +126,7 @@ pn2pw <- function(beta=beta0, sigma=sigma0, gamma=gamma0, arbvar, model){
   return(parvect)
 }
 
-
+# depending on model and arbvar, this function expects different dimensions of parvect...
 pw2pn <- function(parvect=parvect0, d, K, arbvar, model){
   
   beta <- matrix(parvect[1:(d*K)], d, K)
@@ -136,7 +141,6 @@ pw2pn <- function(parvect=parvect0, d, K, arbvar, model){
       gamma <- rep(1,K)
       gamma[2:K] <- exp(parvect[(d*K+K+1):length(parvect)])
       gamma <- gamma / sum(gamma)
-      #gamma <- matrix(gamma, K, K, byrow = T)
     }
   }
   if(!arbvar){
@@ -150,7 +154,6 @@ pw2pn <- function(parvect=parvect0, d, K, arbvar, model){
       gamma <- rep(1,K)
       gamma[2:K] <- exp(parvect[(d*K+1+1):length(parvect)])
       gamma <- gamma / sum(gamma)
-      #gamma <- matrix(gamma, K, K, byrow = T)
     }
   }
   return(list(beta=beta,sigma=sigma,gamma=gamma))
@@ -189,53 +192,53 @@ dpw2pn <- function(parvect, d, K, arbvar, model, silent = TRUE){
 }
 
 if(0){
-mllk <- function(parvect=parvect0, y, x=xx, d, K, arbvar, model, lambda){
-  
-  lpn <- pw2pn(parvect, d, K, arbvar, model)
-  beta <- lpn$beta
-  sigma <- lpn$sigma
-  gamma <- lpn$gamma
-  if(!arbvar) sigma <- rep(sigma,K)
-  if(model=="IID") gamma <- matrix(gamma, K, K, byrow=T)
-  
-  N <- length(y)
-  logprobs <- matrix(rep(0,K*N),nrow=N)
-  for (j in 1:K){
-    logprobs[,j] <- dnorm(y,x%*%beta[,j],sigma[j], log = TRUE) # emission probabilities
-  }
-  
-  logf      <- matrix(NA, nrow = N, ncol = K)
-  logf[1,]  <- c(logprobs[1,1], rep(-Inf,K-1))
-  
-  for (n in 2:N) {
-    for (k in 1:K) {
-      logsum <- -Inf
-      for (j in 1:K) {
-        logsummand <- logf[n-1, j] + log(gamma[j,k])
-        if (logsum - logsummand < 700) {
-          logsum <- logsummand + log(1 + exp(logsum - logsummand)) # log(exp(logsummand)+exp(logsum)) = log(summand + sum)
+  mllk <- function(parvect=parvect0, y, x=xx, d, K, arbvar, model, lambda){
+    
+    lpn <- pw2pn(parvect, d, K, arbvar, model)
+    beta <- lpn$beta
+    sigma <- lpn$sigma
+    gamma <- lpn$gamma
+    if(!arbvar) sigma <- rep(sigma,K)
+    if(model=="IID") gamma <- matrix(gamma, K, K, byrow=T)
+    
+    N <- length(y)
+    logprobs <- matrix(rep(0,K*N),nrow=N)
+    for (j in 1:K){
+      logprobs[,j] <- dnorm(y,x%*%beta[,j],sigma[j], log = TRUE) # emission probabilities
+    }
+    
+    logf      <- matrix(NA, nrow = N, ncol = K)
+    logf[1,]  <- c(logprobs[1,1], rep(-Inf,K-1))
+    
+    for (n in 2:N) {
+      for (k in 1:K) {
+        logsum <- -Inf
+        for (j in 1:K) {
+          logsummand <- logf[n-1, j] + log(gamma[j,k])
+          if (logsum - logsummand < 700) {
+            logsum <- logsummand + log(1 + exp(logsum - logsummand)) # log(exp(logsummand)+exp(logsum)) = log(summand + sum)
+          }
         }
+        logf[n, k] <- logprobs[n,k] + logsum
       }
-      logf[n, k] <- logprobs[n,k] + logsum
     }
-  }
-  
-  loglik <- logf[N, 1]
-  
-  for (k in 2:K) {
-    temp <- logf[N, k]
-    if (loglik - temp < 700) {
-      loglik <- temp + log(1 + exp(loglik - temp))
+    
+    loglik <- logf[N, 1]
+    
+    for (k in 2:K) {
+      temp <- logf[N, k]
+      if (loglik - temp < 700) {
+        loglik <- temp + log(1 + exp(loglik - temp))
+      }
     }
+    
+    # loglik <- log(sum(exp(logf[N,])))
+    penalty <- penalty.scad(gamma,lambda, N,d, arbvar)
+    print(paste("loglik: ", loglik))
+    print(paste("penalty: ", penalty))
+    if(lambda != 0) loglik <- loglik - penalty
+    return(-loglik)
   }
-  
-  # loglik <- log(sum(exp(logf[N,])))
-  penalty <- penalty.scad(gamma,lambda, N,d, arbvar)
-  print(paste("loglik: ", loglik))
-  print(paste("penalty: ", penalty))
-  if(lambda != 0) loglik <- loglik - penalty
-  return(-loglik)
-}
 }
 
 #if(0){
@@ -258,10 +261,10 @@ mllk <- function(parvect=parvect0, y, x=xx, d, K, arbvar, model, lambda){
   lscale <- 0
   for (i in 1:N){
     #if(sum(allprobs[i,])!=0){
-      foo <- foo%*%gamma*allprobs[i,] 
-      sumfoo <- sum(foo)
-      lscale <- lscale+log(sumfoo)
-      foo <- foo/sumfoo # scaling to avoid numerical underflow
+    foo <- foo%*%gamma*allprobs[i,] 
+    sumfoo <- sum(foo)
+    lscale <- lscale+log(sumfoo)
+    foo <- foo/sumfoo # scaling to avoid numerical underflow
     #}
   }
   

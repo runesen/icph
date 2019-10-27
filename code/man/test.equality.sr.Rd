@@ -6,10 +6,10 @@
 \usage{
 test.equality.sr(Y, X, E, number.of.states = 2, model = "HMM",
   intercept = TRUE, alpha = 0.05, plot = TRUE,
-  par.test = list(method = "NLM", variance.constraint = "equality",
-  test.parameters = c("intercept", "beta", "sigma"), testNoMix = FALSE,
-  penalty = FALSE, init = "regmix", output.pvalue = TRUE, silent = TRUE,
-  theta0 = NULL))
+  par.test = list(method = "NLM", optim.n.inits = 5, variance.constraint
+  = "equality", test.parameters = c("intercept", "beta", "sigma"),
+  testNoMix = FALSE, penalty = FALSE, init = "regmix", output.pvalue =
+  TRUE, silent = TRUE, theta0 = NULL))
 }
 \arguments{
 \item{Y}{A numeric vector with observations from the target variable for all data sets.}
@@ -42,6 +42,8 @@ be included in the linear regression of all components.}
     If ``EM'', the EM-algorithm is used (via the function \code{mixreg} from the package \code{mixtools}). 
     If ``NLM'', the Newton-type optimizer \code{nlm} is called. 
     Note: the EM-algorithm is currently only implemented for model ``IID''. 
+  }
+  \item{\code{optim.n.inits}:}{ Number of different starting values in likelihood optimization. 
   }
   \item{\code{variance.constraint}:}{ The constraint imposed on the error variance of the mixture components. 
     If ``equality'', all error variances are required to be equal. 
@@ -145,20 +147,14 @@ distribution of Y given X.
   
   # The intercept, regression coefficients and error variances 
   # for the switching regression models of Y1 given X1 coincide
-  test1 <- test.equality.sr(Y = Y1, X = X1, E = E, 
-                            par.test = list(test.parameters = c("intercept", "beta", "sigma"), 
-                                            output.pvalue = TRUE)
-                           )
+  test1 <- test.equality.sr(Y = Y1, X = X1, E = E)
   test1
   
   X2 <- rnorm(n)
   Y2  <- (H==1)*(1 + E*X2 + .5*rnorm(n)) + (H==2)*(E + 2*X2 + .7*rnorm(n))
   
   # For the switching regression models of Y2 given X2, they do not
-  test2 <- test.equality.sr(Y = Y2, X = X2, E = E, 
-                            par.test = list(test.parameters = c("intercept", "beta", "sigma"), 
-                                            output.pvalue = TRUE)
-                           )
+  test2 <- test.equality.sr(Y = Y1, X = X2, E = E)
   test2
 
 }

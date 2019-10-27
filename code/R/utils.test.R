@@ -1,3 +1,31 @@
+
+fit.model <- function(x, y, h, beta){
+  
+  N <- length(y)
+  K <- ncol(beta)
+  fitted <- residuals <- numeric(N)
+  
+  for(i in 1:K){
+    fitted[h==i]     <- x[h==i,,drop=F]%*%beta[,i]
+    residuals[h==i]  <- y[h==i] - fitted[h==i]
+  }
+  
+  return(list(fitted = fitted,
+              residuals = residuals))
+}
+
+loglik.fun <- function(x=xx, y, beta=beta0, sigma=sigma0, lambda=lambda0){
+  
+  N <- length(y)
+  K <- ncol(beta)
+  
+  sum <- 0
+  for(i in 1:N){
+    sum <- sum + log(sum(sapply(1:K, function(j) lambda[j]*dnorm(y[i], x[i,]%*%beta[,j], sigma[j]))))
+  }
+  return(sum)
+}
+
 decoupledTest <- function(x, y, e, intercept, plot){
   
   n <- nrow(x)

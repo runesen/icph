@@ -6,7 +6,9 @@
 # source("fisher.info.R")
 
 
-mle.em <- function(x=xf, y=yf, K, theta0 = theta0[[1]], intercept, arbvar, model = "IID", init, maxrestarts = 5){
+mle.em <- function(x=xf, y=yf, K, theta0 = theta0[[1]], intercept, arbvar, model = "IID", init, maxrestarts = 5, rep=5){
+  
+  if(model == "HMM") stop("EM algorithm for HMM not yet implemented")
   
   d <- ncol(x) + intercept
   N <- nrow(x)
@@ -14,36 +16,58 @@ mle.em <- function(x=xf, y=yf, K, theta0 = theta0[[1]], intercept, arbvar, model
   converged <- FALSE
   posdef    <- FALSE
   restarts  <- -1
+  mods <- vector("list")
+  llks <- rep(NA,rep)
   
-  if(model == "HMM") stop("EM algorithm for HMM not yet implemented")
-  if(model == "IID"){
-    #while(!(posdef && converged)){
-    if(init == "regmix"){
-      inits <- mixtools::regmix.init(y, xx, k=2, addintercept = FALSE, arbvar=arbvar)
-      beta0 <- inits$beta
-      sigma0 <- inits$s
+  for(r in 1:rep){
+    if(model == "IID"){
+      #while(!(posdef && converged)){
+      if(init == "regmix"){
+        inits <- mixtools::regmix.init(y, xx, k=2, addintercept = FALSE, arbvar=arbvar)
+        beta0 <- inits$beta
+        #print(beta0)
+        sigma0 <- inits$s
+        gamma0 <- matrix(inits$lambda, nrow=K, ncol=K, byrow=TRUE)
+      }
+      if(init == "random"){
+        beta0 <- matrix(runif(d*K,-2,2),d,K)
+        sigma0 <- runif(1+(K-1)*arbvar,.01,1)
+        gamma0 <- matrix(runif(K^2,0,1/K),K,K) 
+        diag(gamma0) <- sapply(1:K, function(k) 1-sum(gamma0[k,-k]))
+      }
+      if(init == "true"){
+        beta0 <- rbind(theta0$mu, theta0$beta)
+        #print(beta0)
+        sigma0 <- theta0$sigma
+        gamma0 <- theta0$gamma
+      }
+      
+      if(model == "IID") gamma0 <- gamma0[1,]
+      
+      if(ncol(x) > 0){
+        em <- mixtools::regmixEM(y=y, x=xx, k=K, beta=beta0, sigma=sigma0, lambda = gamma0, arbmean = TRUE, arbvar = arbvar, addintercept = FALSE)
+        beta <- em$beta
+      }else{
+        em <- mixtools::normalmixEM(y, k=K, mu=c(beta0), sigma=sigma0, lambda = gamma0, maxit = 1e4, arbmean = TRUE, arbvar = arbvar)
+        beta <- matrix(em$mu, 1, K)
+      }
+      mods[[r]] <- em
+      sigma  <- em$sigma; if(!arbvar) sigma <- rep(sigma,K)
+      lambda  <- em$lambda
+      llks[r] <- loglik.fun(xx, y, beta, sigma, lambda)
     }
-    if(init == "random"){
-      beta0 <- matrix(runif(d*K,-2,2),d,K)
-      sigma0 <- runif(K,.01,1)
-    }
-    if(init == "true"){
-      beta0 <- theta0$beta
-      sigma0 <- theta0$sigma
-    }
-    if(ncol(x) > 0){
-      em <- mixtools::regmixEM(y=y, x=x, k=K, beta=beta0, sigma=sigma0, arbmean = TRUE, arbvar = arbvar, addintercept = intercept)
-      beta <- em$beta
-    }else{
-      em <- mixtools::normalmixEM(y, k=K, mu=c(beta0), sigma=sigma0, maxit = 1e4, arbmean = TRUE, arbvar = arbvar)
-      beta <- matrix(em$mu, 1, K)
-    }
-    sigma  <- em$sigma; if(!arbvar) sigma <- rep(sigma,K)
-    lambda  <- em$lambda
-    h       <- apply(em$posterior, 1, which.max)
+    ind <- which.min(llks[1:rep])
+    mod <- mods[[ind]]
   }
   
-  fit <- fit.model(x, y, h, beta, intercept)
+  if(ncol(x) > 0) beta <- mod$beta
+  if(ncol(x) == 0) beta <- matrix(mod$mu, 1, K)
+  sigma  <- mod$sigma; if(!arbvar) sigma <- rep(sigma,K)
+  lambda  <- mod$lambda
+  h <- apply(mod$posterior, 1, which.max)
+  
+  
+  fit <- fit.model(xx, y, h, beta)
   fisher <- fisher.info(x, y, beta, sigma, lambda, intercept, arbvar)
   jacobian <- diag(nrow(fisher))
   if(arbvar)  diag(jacobian)[(d*K+1):(d*K+K)] <- 1/(2*sigma)
@@ -57,11 +81,10 @@ mle.em <- function(x=xf, y=yf, K, theta0 = theta0[[1]], intercept, arbvar, model
     beta0 <- theta0$beta
     sigma0 <- theta0$sigma
     gamma0 <- theta0$gamma
-    #if(!arbvar) sigma0 <- sigma0[1]
+    # if(!arbvar) sigma0 <- sigma0[1]
     if(model=="IID") gamma0 <- gamma0[1,]
     if(is.null(mu0)) mu0 <- rep(0,K)
     if(intercept) beta0 <- rbind(mu0, beta0)
-    xx <- x; if(intercept) xx <- cbind(rep(1,N),xx)
     loglik0 <- loglik.fun(xx, y, beta0, sigma0, gamma0)
   }
   
@@ -95,33 +118,4 @@ mle.em <- function(x=xf, y=yf, K, theta0 = theta0[[1]], intercept, arbvar, model
                         intercept = intercept, 
                         estimation = "EM", model = model),
                    class = "modelfit"))
-}
-
-
-fit.model <- function(x, y, h, beta, intercept){
-  
-  N <- length(y)
-  K <- ncol(beta)
-  if(intercept) x <- cbind(rep(1,N), x)
-  fitted <- residuals <- numeric(N)
-  
-  for(i in 1:K){
-    fitted[h==i]     <- x[h==i,,drop=F]%*%beta[,i]
-    residuals[h==i]  <- y[h==i] - fitted[h==i]
-  }
-  
-  return(list(fitted = fitted,
-              residuals = residuals))
-}
-
-loglik.fun <- function(x=xx, y, beta=beta0, sigma=sigma0, lambda=lambda0){
-  
-  N <- length(y)
-  K <- ncol(beta)
-  
-  sum <- 0
-  for(i in 1:N){
-    sum <- sum + log(sum(sapply(1:K, function(j) lambda[j]*dnorm(y[i], x[i,]%*%beta[,j], sigma[j]))))
-  }
-  return(sum)
 }
