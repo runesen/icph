@@ -32,8 +32,8 @@ check.cover <- function(MF=MFs[[1]], pars=testpars){
 # Checks if CR at level alpha covers the true parameter
 check.cover.alpha <- function(MF, alpha, pars){
   
-  if(alpha==1) return(FALSE)
-  if(alpha==0) return(TRUE)
+  # if(alpha==1) return(FALSE)
+  # if(alpha==0) return(TRUE)
   
   arbvar <- MF$arbvar
   
