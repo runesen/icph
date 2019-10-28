@@ -8,7 +8,7 @@ mle.nlm <- function(x=xf, y=yf, K=3, theta0=theta0[[i]], intercept=TRUE, arbvar 
   
   lambda_seq <- unique(10^(-(0:5))*penalty)
   mod<-mods<-vector("list")
-  llks<-rep(NA,rep)
+  mllks<-rep(NA,rep)
   bics <- rep(NA,length(lambda_seq))
   
   # Fit some models and choose the best
@@ -38,9 +38,9 @@ mle.nlm <- function(x=xf, y=yf, K=3, theta0=theta0[[i]], intercept=TRUE, arbvar 
       
       lambda <- lambda_seq[l]
       mods[[r]] <- suppressWarnings(mle(xx,y,beta0,sigma0,gamma0,arbvar,model,lambda,pl=0))
-      llks[r]<-mods[[r]]$mllk
+      mllks[r]<-mods[[r]]$mllk
     }
-    ind<-which.min(llks[1:rep])
+    ind<-which.min(mllks[1:rep])
     mod[[l]]<-mods[[ind]]
     bics[l] <- BIC(mod[[l]]$workingparas, y, xx, d, K, arbvar, model)
   }

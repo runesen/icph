@@ -23,10 +23,10 @@ mle.em <- function(x=xf, y=yf, K, theta0 = theta0[[1]], intercept, arbvar, model
     if(model == "IID"){
       #while(!(posdef && converged)){
       if(init == "regmix"){
-        inits <- mixtools::regmix.init(y, xx, k=2, addintercept = FALSE, arbvar=arbvar)
+        inits <- mixtools::regmix.init(y, xx, k=K, addintercept = FALSE, arbvar=arbvar)
         beta0 <- inits$beta
         #print(beta0)
-        sigma0 <- inits$s
+        sigma0 <- inits$s + 0.01 # to make the method comparable with NLM, which also uses this initialization
         gamma0 <- matrix(inits$lambda, nrow=K, ncol=K, byrow=TRUE)
       }
       if(init == "random"){
@@ -56,7 +56,7 @@ mle.em <- function(x=xf, y=yf, K, theta0 = theta0[[1]], intercept, arbvar, model
       lambda  <- em$lambda
       llks[r] <- loglik.fun(xx, y, beta, sigma, lambda)
     }
-    ind <- which.min(llks[1:rep])
+    ind <- which.max(llks[1:rep])
     mod <- mods[[ind]]
   }
   
