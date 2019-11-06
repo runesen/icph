@@ -194,7 +194,7 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
     par.test$theta0 <- NULL
   }
   
-  K <- number.of.states
+  K <- sort(number.of.states)
   method <- par.test$method
   optim.n.inits <- par.test$optim.n.inits
   arbvar <- (par.test$variance.constraint == "lower bound")
@@ -222,52 +222,64 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
     }
   }
   
-  # Object to hold all model fits (MFs)
-  MFs <- list()
   ne  <- length(unique(E))
   d   <- ncol(X) + intercept
   
-  p.value <- p.values.cover <- reject <- mse <- rep(NA,ne)
+  p.value <- -1
   
-  ## Fit mixture models
-  if(method == "EM"){
-    for(i in 1:ne){
-      if(!silent) print(paste0("Fitting environment ", i))
-      f <- unique(E)[i]
-      w <- which(E==f)
-      xf <- X[w,,drop=F]
-      yf <- Y[w]
-      MFs[[i]] <- mle.em(xf, yf, K, theta0[[i]], intercept, arbvar, model, init, rep=optim.n.inits)
-      if(!is.null(theta0)){ tmp <- check.cover(MFs[[i]], testpars); p.values.cover[i] <- tmp$p.value; mse[i] <- tmp$mse}
-    }
-  }
-  if(method == "NLM"){
-    for(i in 1:ne){
-      if(!silent) print(paste0("Fitting environment ", i))
-      f <- unique(E)[i]
-      w <- which(E==f)
-      xf <- X[w,,drop=F]
-      yf <- Y[w]
-      MFs[[i]] <- mle.nlm(x=xf, y=yf, K, theta0=theta0[[i]], intercept, arbvar, model, init, penalty, rep=optim.n.inits)
-      if(!is.null(theta0)){ tmp <- check.cover(MFs[[i]], testpars); p.values.cover[i] <- tmp$p.value; mse[i] <- tmp$mse}
-    }
-  }
-  
-  if(ne>1){
-  ## Compute p-values for all label permutations and return largest p-value and the corresponding permutation
-    if(!silent) print("Computing p-value")
-    tmp  <- pval.fun(MFs, testpars, alpha, output.pvalue)
-    p.value <- tmp$pval
-    reject <- tmp$reject
+  # run through all supplied values for K, choose model that yields the highest p-value
+  for(k in K){
     
-    ## Permute model labels according to largest p-value
-    for(i in 1:ne){
-      MFs[[i]] <- permute.labels(MF=MFs[[i]], perm=unlist(tmp$perm[[i]]))
+    # Object to hold all model fits (MFs)
+    MFs.new <- list()
+    p.values.cover.new <- mse.new <- rep(NA,ne)
+    
+    ## Fit mixture models
+    if(method == "EM"){
+      for(i in 1:ne){
+        if(!silent) print(paste0("Fitting environment ", i))
+        f <- unique(E)[i]
+        w <- which(E==f)
+        xf <- X[w,,drop=F]
+        yf <- Y[w]
+        MFs.new[[i]] <- mle.em(xf, yf, k, theta0[[i]], intercept, arbvar, model, init, rep=optim.n.inits)
+        if(!is.null(theta0)){ tmp <- check.cover(MFs.new[[i]], testpars); p.values.cover.new[i] <- tmp$p.value; mse.new[i] <- tmp$mse}
+      }
+    }
+    if(method == "NLM"){
+      for(i in 1:ne){
+        if(!silent) print(paste0("Fitting environment ", i))
+        f <- unique(E)[i]
+        w <- which(E==f)
+        xf <- X[w,,drop=F]
+        yf <- Y[w]
+        MFs.new[[i]] <- mle.nlm(x=xf, y=yf, k, theta0=theta0[[i]], intercept, arbvar, model, init, penalty, rep=optim.n.inits)
+        if(!is.null(theta0)){ tmp <- check.cover(MFs.new[[i]], testpars); p.values.cover.new[i] <- tmp$p.value; mse.new[i] <- tmp$mse}
+      }
+    }
+    
+    if(ne>1){
+      ## Compute p-values for all label permutations and return largest p-value and the corresponding permutation
+      if(!silent) print("Computing p-value")
+      tmp  <- pval.fun(MFs.new, testpars, alpha, output.pvalue)
+      p.value.new <- tmp$pval
+      reject.new <- tmp$reject
+      
+      ## Permute model labels according to largest p-value
+      for(i in 1:ne){
+        MFs.new[[i]] <- permute.labels(MF=MFs.new[[i]], perm=unlist(tmp$perm[[i]]))
+      }
+    }
+    
+    # if current number of states yields larger p-value than previous one, adopt it
+    if(p.value.new > p.value){ # this will always be the case for first k value, since p.value is initialized at -1
+      p.value <- p.value.new
+      p.values.cover <- p.values.cover.new
+      mse <- mse.new
+      reject <- reject.new
+      MFs <- MFs.new
     }
   }
-  # if(!is.null(theta0)){
-  #   p.values.cover <- sapply(1:ne, function(i) check.cover(MFs[[i]], testpars))
-  # }
   
   if(plot) plotfun(MFs, alpha)
   
@@ -282,7 +294,7 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
   out$intercept <- intercept
   out$ne <- ne
   out$d <- d
-  out$K <- K
+  out$K <- MFs[[1]]$K
   
   ## Most probable sequence of latent states
   hhat <- numeric(length(Y))
