@@ -269,15 +269,24 @@ test.equality.sr <- function(Y, X, E, number.of.states = 2,
       for(i in 1:ne){
         MFs.new[[i]] <- permute.labels(MF=MFs.new[[i]], perm=unlist(tmp$perm[[i]]))
       }
-    }
     
-    # if current number of states yields larger p-value than previous one, adopt it
-    if(p.value.new > p.value){ # this will always be the case for first k value, since p.value is initialized at -1
-      p.value <- p.value.new
+      # if current number of states yields larger p-value than previous one, adopt it
+      if(p.value.new > p.value){ # this will always be the case for first k value, since p.value is initialized at -1
+        p.value <- p.value.new
+        p.values.cover <- p.values.cover.new
+        mse <- mse.new
+        reject <- reject.new
+        MFs <- MFs.new
+        if(p.value >= alpha) break
+      }
+    }
+    if(ne==1){
+      p.value <- NA
+      reject <- NA
       p.values.cover <- p.values.cover.new
       mse <- mse.new
-      reject <- reject.new
       MFs <- MFs.new
+      break
     }
   }
   
