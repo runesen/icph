@@ -102,7 +102,7 @@ ddloglik <- function(x, y, beta, sigma, lambda, i, n, arbvar){
 
 fisher2covmat <- function(fisher, jacobian, d, K, arbvar, model, intercept){
   
-  # fisher <- (fisher + t(fisher))/2
+  fisher <- (fisher + t(fisher))/2
   e <- eigen(fisher)
   v <- e$values
   v <- makePositive(v)
