@@ -315,7 +315,7 @@ my_trans <- function(name, up, low, mid, breaks){
   function() trans_new(name, scale_trans, ascale_trans, breaks = function(x) breaks, domain = c(low,up))
 } 
 
-grid_arrange_shared_legend <- function(..., ncol = length(list(...)), nrow = 1, position = c("bottom", "right")) {
+grid_arrange_shared_legend <- function(..., title = NULL, ncol = length(list(...)), nrow = 1, position = c("bottom", "right")) {
   
   plots <- list(...)
   position <- match.arg(position)
@@ -329,11 +329,13 @@ grid_arrange_shared_legend <- function(..., ncol = length(list(...)), nrow = 1, 
   combined <- switch(position,
                      "bottom" = arrangeGrob(do.call(arrangeGrob, gl),
                                             legend,
+                                            top = title,
                                             ncol = 1,
-                                            heights = unit.c(unit(1, "npc") - lheight, lheight)),
+                                            heights = unit.c(unit(.9+.1*is.null(title), "npc") - lheight, lheight)),
                      "right" = arrangeGrob(do.call(arrangeGrob, gl),
                                            legend,
+                                           top = title,
                                            ncol = 2,
-                                           widths = unit.c(unit(1, "npc") - lwidth, lwidth)))
+                                           widths = unit.c(unit(.9+.1*is.null(title), "npc") - lwidth, lwidth)))
   
 }
