@@ -19,6 +19,10 @@ mle.nlm <- function(x=xf, y=yf, K=3, theta0=theta0[[i]], intercept=TRUE, arbvar 
         beta0 <- inits$beta
         sigma0 <- inits$s + 0.01 # to comply with constraints in NLM method
         gamma0 <- matrix(inits$lambda, nrow=K, ncol=K, byrow=TRUE)
+        if(any(is.na(c(beta0, sigma0, gamma0)))){
+          print("NAs in starting values -- using random initialization instead")
+          init <- "random"
+        }
       }
       if(init == "random"){
         beta0 <- matrix(runif(d*K,-2,2),d,K)
